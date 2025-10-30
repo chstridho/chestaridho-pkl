@@ -15,8 +15,9 @@ type Row = {
     year: number | null;
 };
 
-function getBaseUrl() {
-    const h = headers();
+// Ubah menjadi async function
+async function getBaseUrl() {
+    const h = await headers(); // TAMBAHKAN await di sini
     const proto = h.get('x-forwarded-proto') ?? 'http';
     const host = h.get('x-forwarded-host') ?? h.get('host');
     const envBase = process.env.NEXT_PUBLIC_BASE_URL;
@@ -24,16 +25,19 @@ function getBaseUrl() {
 }
 
 async function getData(slug: string): Promise<Row | null> {
-    const base = getBaseUrl();
-    const res = await fetch(`${base}/api/portfolio/${slug}`, { next: { tags: ['portfolio'] } });
+    const base = await getBaseUrl(); // TAMBAHKAN await di sini
+    const res = await fetch(`${base}/api/portfolio/${slug}`, { 
+        next: { tags: ['portfolio'] } 
+    });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Failed to load project');
     const j = await res.json();
     return j.data as Row;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-    const data = await getData(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params; // TAMBAHKAN await di sini
+    const data = await getData(slug);
     if (!data) return { title: 'Project not found' };
     return {
         title: `${data.title} • Portfolio`,
@@ -42,8 +46,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
 }
 
-export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
-    const data = await getData(params.slug);
+export default async function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params; // TAMBAHKAN await di sini
+    const data = await getData(slug);
     if (!data) notFound();
 
     const { title, description, techs, cover_url, repo_url, demo_url, year } = data;
