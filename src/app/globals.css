@@ -1,42 +1,516 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+html { scroll-behavior: auto; }
+html, body { background-color: #d9d9d9; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Container util */
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-5 md:px-6;
   }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+/* Paksa semua header yang memakai .not-sticky jadi posisi normal */
+.not-sticky {
+  position: static !important;
+  top: auto !important;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ==== HERO ANIMATIONS & UTILITIES ==== */
+@keyframes rise {
+  0% { opacity: 0; transform: translateY(16px) scale(.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes floaty {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/* reveal utilities */
+.letter-rise { animation: rise .6s cubic-bezier(.2,.65,.2,1) both; }
+.reveal-up { animation: rise .7s cubic-bezier(.2,.65,.2,1) both; }
+
+/* mouse spotlight that follows --mx/--my vars */
+.hero-spotlight {
+  pointer-events: none;
+  background: radial-gradient(480px circle at var(--mx,50%) var(--my,50%),
+    rgba(255,255,255,.10), transparent 60%);
+  mix-blend-mode: overlay;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* subtle texture */
+.hero-grid {
+  opacity: .06;
+  background-image: radial-gradient(#000 1px, transparent 1px);
+  background-size: 12px 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+/* marquee line */
+.marquee {
+  display: flex;
+  gap: 2rem;
+  width: 200%;
+  animation: marquee 18s linear infinite;
+  white-space: nowrap;
+}
+
+/* reduces motion */
+@media (prefers-reduced-motion: reduce) {
+  .letter-rise, .reveal-up, .marquee { animation: none !important; }
+}
+
+/* === ABSTRACT ABOUT ANIMATIONS === */
+@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes blob {
+  0% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(6px,-10px) scale(1.02); }
+  66% { transform: translate(-8px,6px) scale(0.99); }
+  100% { transform: translate(0,0) scale(1); }
+}
+@keyframes rise {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.reveal-up { animation: rise .7s cubic-bezier(.2,.65,.2,1) both; }
+
+/* Tagline hover wave */
+@keyframes tagline-wave {
+  0%   { transform: translateY(0) rotate(0deg); }
+  40%  { transform: translateY(-8px) rotate(1.5deg); }
+  60%  { transform: translateY(1px) rotate(-0.4deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+.tagline-animated {
+  position: relative;
+  line-height: .9;
+}
+.tagline-animated .char {
+  display: inline-block;
+  will-change: transform;
+}
+.tagline-animated:hover .char {
+  animation: tagline-wave .6s cubic-bezier(.2,.65,.2,1) both;
+  /* Delay tiap huruf di-set inline dari komponen */
+}
+.tagline-animated::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .45s ease, opacity .45s ease;
+  opacity: .35;
+}
+.tagline-animated:hover::after {
+  transform: scaleX(1);
+  opacity: .6;
+}
+
+/* Respect user motion pref */
+@media (prefers-reduced-motion: reduce) {
+  .tagline-animated:hover .char { animation: none !important; }
+  .tagline-animated::after { transform: scaleX(1); }
+}
+
+/* ==== Scroll Animations – FIXED ==== */
+:root { --sr-ease: cubic-bezier(.2,.65,.2,1); }
+
+.sr {
+  opacity: 0;
+  filter: blur(6px);
+  transform-origin: var(--sr-origin, center);
+  transition:
+    opacity var(--sr-dur, .7s) var(--sr-ease),
+    transform var(--sr-dur, .7s) var(--sr-ease),
+    filter var(--sr-dur, .7s) var(--sr-ease),
+    clip-path var(--sr-dur, .7s) var(--sr-ease); /* penting */
+  will-change: transform, opacity, filter, clip-path;
+}
+
+/* Variants (initial states) */
+.sr-fade-up    { transform: translate3d(0, 18px, 0); }
+.sr-fade-down  { transform: translate3d(0,-18px, 0); }
+.sr-fade-left  { transform: translate3d(24px,0, 0); }
+.sr-fade-right { transform: translate3d(-24px,0, 0); }
+.sr-zoom-in    { transform: scale(.92); }
+.sr-skew       { transform: translateY(16px) skewY(3deg); }
+.sr-blur       { filter: blur(14px); transform: translateY(6px); }
+.sr-clip       { clip-path: inset(0 0 100% 0); } /* awalnya tertutup */
+
+/* When visible */
+.sr-visible { opacity: 1; filter: blur(0); transform: none; }
+.sr-visible.sr-clip { clip-path: inset(0 0 0 0); }
+
+/* ==== Parallax Backdrop utilities ==== */
+.parallax-blob {
+  mix-blend-mode: overlay;
+  filter: blur(30px);
+  will-change: transform;
+}
+
+/* ==== Progress bar ==== */
+.scroll-progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg,#ffffffb3,#fff);
+  box-shadow: 0 0 8px rgba(255,255,255,.65);
+}
+
+/* Motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .sr, .sr-visible { transition: none !important; }
+}
+
+/* Theme surface layering */
+.theme-surface {
+  position: relative;
+}
+.theme-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.08); /* dim */
+  z-index: 0;                   /* di bawah meteors */
+  pointer-events: none;
+}
+/* Hanya konten biasa yang di atas meteors. Anak dengan .surface-layer dikecualikan. */
+.theme-surface > :not(.surface-layer) {
+  position: relative;
+  z-index: 2;
+}
+
+/* ==== QUOTES STAGE (no card) ==== */
+@keyframes sweep {
+  0%   { transform: translateX(-60%) rotate(2deg); opacity: .25; }
+  50%  { opacity: .5; }
+  100% { transform: translateX(60%)  rotate(2deg); opacity: .25; }
+}
+@keyframes dash {
+  0% { background-position: 0 0; }
+  100% { background-position: 100% 0; }
+}
+
+/* garis halus */
+.quotes-lines {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,.08) 0 1px,
+    transparent 1px 18px
+  );
+  opacity: .25;
+}
+
+/* spotlight mouse */
+.quotes-spot {
+  background: radial-gradient(520px 320px at var(--mx,50%) var(--my,50%),
+    rgba(255,255,255,.10), transparent 60%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .quotes-sweep { animation: none !important; }
+}
+
+/* ==== Projects effects ==== */
+@keyframes proj-shine {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(120%); }
+}
+.proj-tilt {
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0);
+  will-change: transform;
+}
+.proj-shine::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: translateX(-120%);
+  transition: opacity .3s ease;
+  opacity: 0;
+}
+.group:hover .proj-shine::after {
+  animation: proj-shine 1.2s ease;
+  opacity: .9;
+}
+/* garis dekor tipis di bawah section */
+.hr-soft {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+}
+
+/* ==== Projects effects (mask reveal, shine, tilt, magnetic) ==== */
+@keyframes proj-shine {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(120%); }
+}
+.proj-tilt {
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0);
+  will-change: transform;
+}
+
+/* overlay reveal dari kanan ke kiri */
+.mask-reveal {
+  position: absolute; inset: 0; pointer-events: none;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path .6s cubic-bezier(.2,.65,.2,1);
+  background: rgba(255,255,255,.08);
+  mix-blend-mode: overlay;
+}
+.group:hover .mask-reveal { clip-path: inset(0 0 0 0); }
+
+/* shine garis diagonal tipis */
+.proj-shine::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: translateX(-120%);
+  transition: opacity .3s ease;
+  opacity: 0;
+}
+.group:hover .proj-shine::after {
+  animation: proj-shine 1.2s ease;
+  opacity: .9;
+}
+
+/* decorative hr */
+.hr-soft {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+}
+
+/* Enhanced tilt effect */
+.proj-tilt {
+  transform-style: preserve-3d;
+  transform: perspective(1000px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0));
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Enhanced shine effect */
+.proj-shine::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.group:hover .proj-shine::before {
+  transform: translateX(100%);
+}
+
+/* Enhanced mask reveal */
+.mask-reveal {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+
+.group:hover .mask-reveal {
+  opacity: 1;
+}
+
+/* Smooth animations */
+@media (prefers-reduced-motion: reduce) {
+  .proj-tilt,
+  .proj-shine::before,
+  .mask-reveal {
+    transition: none !important;
   }
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(-20px) translateX(20px);
+  }
+  50% {
+    transform: translateY(15px) translateX(-15px);
+  }
+  75% {
+    transform: translateY(-15px) translateX(15px);
+  }
+}
+
+/* Glitch effect for brand */
+@keyframes glitch {
+  0%, 100% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-1px, 1px);
+  }
+  40% {
+    transform: translate(1px, -1px);
+  }
+  60% {
+    transform: translate(-1px, -1px);
+  }
+  80% {
+    transform: translate(1px, 1px);
+  }
+}
+
+/* Slide in animation */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ==== Footer: animations & helpers ==== */
+@keyframes blob {
+  0% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(10px,-14px) scale(1.03); }
+  66% { transform: translate(-12px,12px) scale(0.98); }
+  100% { transform: translate(0,0) scale(1); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@layer components {
+  .footer-chip {
+    @apply rounded-full border border-white/20 bg-white/10 px-3 py-1
+      text-xs font-semibold uppercase text-white/85
+      hover:bg-white/20 transition;
+  }
+}
+
+/* Yang lain tetap boleh, contoh: */
+.hr-soft {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-[spin] { animation: none !important; }
+}
+
+/* Meteors */
+/* Meteors (jika belum ada) */
+@keyframes fall-meteor {
+  0%   { transform: translate3d(var(--x,0), -120%, 0) rotate(var(--rot,-14deg)); opacity: 0; }
+  10%  { opacity: .9; }
+  100% { transform: translate3d(var(--x,0), 120%, 0) rotate(var(--rot,-14deg)); opacity: 0; }
+}
+.meteor {
+  position: absolute;
+  top: -15%;                         /* mulai sedikit lebih tinggi */
+  left: var(--left, 50%);
+  width: 2px;
+  height: var(--len, 140px);
+  background: linear-gradient(to bottom, rgba(255,255,255,.95), rgba(255,255,255,0) 75%);
+  filter: blur(.3px);
+  mix-blend-mode: screen;            /* tampak seperti cahaya */
+  animation: fall-meteor var(--dur, 1.4s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  transform: rotate(var(--rot,-14deg));
+  pointer-events: none;
+}
+.meteor::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;           /* kepala meteor lebih kecil */
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255,255,255,.6), 0 0 18px rgba(255,255,255,.35);
+}
+/* Fokus form (ringan) */
+.input-wrap {
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease, background-color .25s ease;
+}
+.input-wrap:focus-within {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 10px 26px rgba(0,0,0,.12);
+  border-color: rgba(255,255,255,.35);
+  background-color: rgba(255,255,255,.12);
+}
+.input-el { transition: color .25s ease; }
+
+/* Fix auto-fill background issue - more aggressive approach */
+.input-el:-webkit-autofill,
+.input-el:-webkit-autofill:hover,
+.input-el:-webkit-autofill:focus,
+.input-el:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,.05) inset !important;
+  -webkit-text-fill-color: white !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  -webkit-transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Additional fix for input wrapper when autofilled */
+.input-wrap:has(.input-el:-webkit-autofill) {
+  background-color: rgba(255,255,255,.05) !important;
+}
+
+/* Force override for all autofill states */
+.input-el:-webkit-autofill::first-line {
+  color: white !important;
+}
+
+/* Alternative approach using animation to override autofill */
+@keyframes autofill-fix {
+  to {
+    background-color: rgba(255,255,255,.05) !important;
+    color: white !important;
+  }
+}
+
+.input-el:-webkit-autofill {
+  animation: autofill-fix 0s forwards !important;
+}
+
+/* Nuclear option - completely override autofill */
+.input-el {
+  background-color: rgba(255,255,255,.05) !important;
+}
+
+.input-el:-webkit-autofill,
+.input-el:-webkit-autofill:hover,
+.input-el:-webkit-autofill:focus,
+.input-el:-webkit-autofill:active,
+.input-el:-webkit-autofill:visited {
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,.05) inset !important;
+  -webkit-text-fill-color: white !important;
+  background-color: rgba(255,255,255,.05) !important;
+  background-image: none !important;
+  color: white !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
 }
