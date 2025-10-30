@@ -57,8 +57,8 @@ function buildCoverUrl(key: string | null | undefined) {
 }
 
 // GET detail: publik hanya lihat published; admin bisa lihat semua
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const idOrSlug = params.id;
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: idOrSlug } = await params; // TAMBAHKAN await di sini
   const supabase = createSupabaseRoute();
   const by = isUUID(idOrSlug) ? { col: 'id', val: idOrSlug } : { col: 'slug', val: idOrSlug };
 
@@ -83,10 +83,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 // PATCH (multipart) — admin only
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return ok({ error: 'Unauthorized' }, 401);
 
-  const id = params.id;
+  const { id } = await params; // TAMBAHKAN await di sini
   if (!isUUID(id)) return ok({ error: 'Invalid id' }, 400);
 
   const admin = adminClient();
@@ -168,10 +168,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // DELETE — admin only
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return ok({ error: 'Unauthorized' }, 401);
 
-  const id = params.id;
+  const { id } = await params; // TAMBAHKAN await di sini
   if (!isUUID(id)) return ok({ error: 'Invalid id' }, 400);
 
   const admin = adminClient();
