@@ -1,10 +1,13 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Anton, Manrope } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { Suspense } from 'react';
+
 
 const anton = Anton({ weight: "400", subsets: ["latin"] });
 const manrope = Manrope({ subsets: ["latin"] });
@@ -257,5 +260,3 @@ export default function AdminLoginPage() {
         </div>
     );
 }
-
-
