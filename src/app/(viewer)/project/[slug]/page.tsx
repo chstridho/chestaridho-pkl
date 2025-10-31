@@ -35,8 +35,8 @@ async function getData(slug: string): Promise<Row | null> {
     return j.data as Row;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params; // TAMBAHKAN await di sini
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+    const { slug } = params;
     const data = await getData(slug);
     if (!data) return { title: 'Project not found' };
     return {
@@ -46,8 +46,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
 }
 
-export default async function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params; // TAMBAHKAN await di sini
+export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
+    const { slug } = params;
     const data = await getData(slug);
     if (!data) notFound();
 
