@@ -15,9 +15,8 @@ type Row = {
     year: number | null;
 };
 
-// Ubah menjadi async function
 async function getBaseUrl() {
-    const h = await headers(); // TAMBAHKAN await di sini
+    const h = headers(); // ga perlu await
     const proto = h.get('x-forwarded-proto') ?? 'http';
     const host = h.get('x-forwarded-host') ?? h.get('host');
     const envBase = process.env.NEXT_PUBLIC_BASE_URL;
@@ -25,9 +24,9 @@ async function getBaseUrl() {
 }
 
 async function getData(slug: string): Promise<Row | null> {
-    const base = await getBaseUrl(); // TAMBAHKAN await di sini
-    const res = await fetch(`${base}/api/portfolio/${slug}`, { 
-        next: { tags: ['portfolio'] } 
+    const base = await getBaseUrl();
+    const res = await fetch(`${base}/api/portfolio/${slug}`, {
+        next: { tags: ['portfolio'] },
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Failed to load project');
@@ -35,8 +34,9 @@ async function getData(slug: string): Promise<Row | null> {
     return j.data as Row;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-    const { slug } = params;
+// ✅ FIXED for Next.js 15 (params is Promise now)
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
     const data = await getData(slug);
     if (!data) return { title: 'Project not found' };
     return {
@@ -46,8 +46,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
 }
 
-export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
-    const { slug } = params;
+// ✅ FIXED for Next.js 15 (params is Promise now)
+export default async function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
     const data = await getData(slug);
     if (!data) notFound();
 
@@ -55,9 +56,7 @@ export default async function ProjectDetailPage({ params }: { params: { slug: st
 
     return (
         <section className="theme-surface">
-            {/* Tambah padding top besar supaya tidak bentrok dengan navbar */}
             <div className="container-app pt-24 sm:pt-28 lg:pt-32 pb-12">
-                {/* Grid 2 kolom: kiri preview, kanan detail */}
                 <div className="grid gap-6 md:grid-cols-12">
                     {/* LEFT: Preview */}
                     <div className="md:col-span-6">
@@ -75,10 +74,10 @@ export default async function ProjectDetailPage({ params }: { params: { slug: st
                                         priority
                                     />
                                 ) : (
-                                    <div className="grid h-full place-items-center text-white/60 text-sm">No Image</div>
+                                    <div className="grid h-full place-items-center text-white/60 text-sm">
+                                        No Image
+                                    </div>
                                 )}
-
-                                {/* Overlay halus + CAPTION judul project */}
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
                                 <figcaption className="absolute left-3 bottom-3 rounded-full bg-black/45 px-3 py-1 text-xs text-white/95 ring-1 ring-white/20">
                                     Judul Project: <span className="font-semibold">{title}</span>
@@ -90,18 +89,13 @@ export default async function ProjectDetailPage({ params }: { params: { slug: st
                     {/* RIGHT: Detail */}
                     <div className="md:col-span-6">
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-5 ring-1 ring-white/15">
-                            {/* Label + Judul Project (dengan keterangan eksplisit) */}
                             <div className="text-[11px] font-semibold uppercase tracking-wide text-white/70">
                                 Judul Project
                             </div>
                             <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white">{title}</h1>
 
-                            {/* Tahun */}
-                            {year ? (
-                                <div className="mt-3 text-xs text-white/70">Tahun: {year}</div>
-                            ) : null}
+                            {year ? <div className="mt-3 text-xs text-white/70">Tahun: {year}</div> : null}
 
-                            {/* Deskripsi */}
                             <div className="mt-5">
                                 <div className="text-sm font-semibold text-white/85">Deskripsi</div>
                                 {description ? (
@@ -111,7 +105,6 @@ export default async function ProjectDetailPage({ params }: { params: { slug: st
                                 )}
                             </div>
 
-                            {/* Tech stack */}
                             {techs && techs.length > 0 && (
                                 <div className="mt-6">
                                     <div className="text-sm font-semibold text-white/85">Tech Stack</div>
@@ -128,7 +121,6 @@ export default async function ProjectDetailPage({ params }: { params: { slug: st
                                 </div>
                             )}
 
-                            {/* Navigasi bawah (tidak menabrak navbar) */}
                             <div className="mt-8 flex flex-wrap gap-3">
                                 <Link
                                     href="/project"
