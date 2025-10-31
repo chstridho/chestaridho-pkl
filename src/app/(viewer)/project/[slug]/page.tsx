@@ -23,6 +23,7 @@ async function getBaseUrl() {
     return envBase || `${proto}://${host}`;
 }
 
+
 async function getData(slug: string): Promise<Row | null> {
     const base = await getBaseUrl();
     const res = await fetch(`${base}/api/portfolio/${slug}`, {
