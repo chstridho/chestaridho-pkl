@@ -1,11 +1,40 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 
 type Row = {
     id: string;
     slug: string;
+    title: string;
+    description: string | null;
+    cover_path: string | null;   // objectKey di bucket
+    techs: string[] | null;
+    repo_url: string | null;
+    demo_url: string | null;
+    year: number | null;
+};
+
+// helper: normalisasi key lama "portfolio/..."
+// dan bangun URL publik dari BUCKET + key
+const BUCKET = process.env.NEXT_PUBLIC_BUCKET_PORTFOLIO || 'portfolio';
+function normalizeKey(key: string | null | undefined) {
+    const k = String(key || '').replace(/^\/+/, '');
+    return k.replace(/^(portfolio|portofolio)\//, '');
+}
+function buildCoverUrl(key: string | null | undefined) {
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const k = normalizeKey(key);
+    return k ? `${base}/storage/v1/object/public/${BUCKET}/${k}` : null;
+}
+
+// Ambil data langsung dari Supabase (RLS publik: published = true)
+async function getDataFromDB(slug: string): Promise<{
     title: string;
     description: string | null;
     cover_url: string | null;
@@ -13,45 +42,56 @@ type Row = {
     repo_url: string | null;
     demo_url: string | null;
     year: number | null;
-};
+} | null> {
+    const supabase = createServerComponentClient({ cookies });
 
-async function getBaseUrl() {
-    // Prioritas env (Vercel)
-    const envBase =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
-    if (envBase) return envBase;
+    const { data, error } = await supabase
+        .from('portfolio')
+        .select('title, description, cover_path, techs, repo_url, demo_url, year, published')
+        .eq('slug', slug)
+        .eq('published', true)     // pastikan hanya yang published
+        .maybeSingle();
 
-    // Next 15: headers() → Promise<ReadonlyHeaders>
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') ?? 'http';
-    const host = h.get('x-forwarded-host') ?? h.get('host');
-    return `${proto}://${host}`;
-}
+    if (error) throw new Error(error.message);
+    if (!data) return null;
 
-async function getData(slug: string): Promise<Row | null> {
-    const base = await getBaseUrl();
-    const res = await fetch(`${base}/api/portfolio/${slug}`, { next: { tags: ['portfolio'] } });
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error('Failed to load project');
-    const j = await res.json();
-    return j.data as Row;
+    return {
+        title: data.title,
+        description: data.description,
+        cover_url: buildCoverUrl(data.cover_path),
+        techs: data.techs,
+        repo_url: data.repo_url,
+        demo_url: data.demo_url,
+        year: data.year,
+    };
 }
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
-    const { slug } = await props.params;
-    const data = await getData(slug);
-    if (!data) return { title: 'Project not found' };
-    return {
-        title: `${data.title} • Portfolio`,
-        description: data.description ?? undefined,
-        openGraph: data.cover_url ? { images: [{ url: data.cover_url }] } : undefined,
-    };
+    try {
+        const { slug } = await props.params;
+        const data = await getDataFromDB(slug);
+        if (!data) return { title: 'Project not found' };
+        return {
+            title: `${data.title} • Portfolio`,
+            description: data.description ?? undefined,
+            openGraph: data.cover_url ? { images: [{ url: data.cover_url }] } : undefined,
+        };
+    } catch {
+        // Jangan lempar error ke build/runtime → fallback metadata
+        return { title: 'Project' };
+    }
 }
 
 export default async function ProjectDetailPage(props: { params: Promise<{ slug: string }> }) {
     const { slug } = await props.params;
-    const data = await getData(slug);
+
+    let data: Awaited<ReturnType<typeof getDataFromDB>> = null;
+    try {
+        data = await getDataFromDB(slug);
+    } catch {
+        // Jika query error tak terduga, anggap tidak ditemukan
+        data = null;
+    }
     if (!data) notFound();
 
     const { title, description, techs, cover_url, repo_url, demo_url, year } = data;
@@ -85,7 +125,7 @@ export default async function ProjectDetailPage(props: { params: Promise<{ slug:
                         </div>
                     </div>
 
-                    {/* Right: Details + nav bawah */}
+                    {/* Right: Details */}
                     <div className="md:col-span-6">
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-5 ring-1 ring-white/15">
                             <div className="text-[11px] font-semibold uppercase tracking-wide text-white/70">
